@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="450" height="225" alt="CableTurtle" src="../README/Images/CableTurtleLogo.jpg">
+  <img width="450" height="225" alt="CableTurtle" src="./README/Images/CableTurtleLogo.jpg">
 </p>
 
 
