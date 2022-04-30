@@ -127,7 +127,7 @@ def format_multi_line(prefix, string, size=80):
         string = ''.join(r'\x{:02x}'.format(byte) for byte in string)
         if size % 2:
             size = 1
-    return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
+    return ''.join([prefix + line for line in textwrap.wrap(string, size)])
 
 
 main()
