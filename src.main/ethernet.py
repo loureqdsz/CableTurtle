@@ -1,20 +1,8 @@
 import socket
 import struct
 import textwrap
-
-TAB_1 = '\t - '
-TAB_2 = '\t\t - '
-TAB_3 = '\t\t\t - '
-TAB_4 = '\t\t\t\t - '
-
-DATA_TAB_1 = '\t '
-DATA_TAB_2 = '\t\t '
-DATA_TAB_3 = '\t\t\t '
-DATA_TAB_4 = '\t\t\t\t '
-
-
-# https://www.youtube.com/watch?v=dM9grWOdTBI&ab_channel=thenewboston
-# aqui tem desenvolvido até a parte 3, mas da pra ir adiante
+from tcp import TCP
+from udp import UDP
 
 
 def main():
@@ -24,110 +12,110 @@ def main():
     conn.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
 
     while True:
-        dados_ethernet, addr = conn.recvfrom(65536)
-        mac_destino, mac_fonte, tipo_protocolo, dados = ethernet_frame(dados_ethernet)
-        print('\nEthernet Frame: ')
-        print(TAB_1 + 'MAC Destino: {}, MAC Source: {}, Protocolo: {}'.format(mac_destino, mac_fonte, tipo_protocolo))
 
-        # 8 Ipv4
-        if tipo_protocolo == 8:
-            (versao, hlen, ttl, protocolo, fonte, destino, dados) = ipv4(dados)
-            print(TAB_1 + 'Ipv4 Packet:')
-            print(TAB_2 + 'Version: {}, Header Length: {}, TTL: {}'.format(versao, hlen, ttl))
-            print(TAB_2 + 'Protocol: {}, Source: {}, Target: {}'.format(protocolo, fonte, destino))
+        raw_data, addr = conn.recvfrom(65535)
+        mac_destino, mac_fonte, tipo_protocolo_ethernet, dados = ethernet_frame(raw_data)
+
+        print('\nEthernet II: ')
+        print('___MAC Destino: {}, MAC Source: {}, Protocolo: {}'.format(mac_destino, mac_fonte, tipo_protocolo_ethernet))
+
+        if tipo_protocolo_ethernet == 43200:  # IPv4
+            (version_ip, hlen_ip, ttl_ip, proto_ip, origem, target, dados_transporte) = ipv_4(dados)
+            print('___IPv4:')
+            print('______Versao: {}, HLength: {}, TTL: {}, Protocolo: {}'.format(version_ip, hlen_ip, ttl_ip, proto_ip))
+            print('______Origem: {}, Destino: {}'.format(origem, target))
 
             # ICMP
-            if protocolo == 1:
-                icmp_type, code, checksum, dados = icmp(dados)
-                print(TAB_1 + 'ICPM Packet:')
-                print(TAB_2 + 'Type: {}, Code: {}, Checksum: {}'.format(icmp_type, code, checksum))
-                print(TAB_2 + 'Data:')
-                print(format_multi_line(DATA_TAB_3, dados))
+            if proto_ip == 1:
+                tipo, codigo, checksum, dados_aplicacao = icmp(dados_transporte)
+                print('___ICMP:')
+                print('______Tipo: {}, Codigo: {}, Checksum: {},'.format(tipo, codigo, checksum))
+                print('______ICMP Data:')
+                print(format_multi_line('_________', dados_aplicacao))
 
-            # TCP
-            if protocolo == 6:
-                (src_port, dest_port, sequence, acknowledgement, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn,
-                 flag_fin, dados) = tcp(dados)
-                print(TAB_1 + 'TCP Segment: ')
-                print(TAB_2 + 'Source Port: {}, Destination Port: {}'.format(src_port, dest_port))
-                print(TAB_2 + 'Sequence: {}, Acknowledgement: {}'.format(sequence, acknowledgement))
-                print(TAB_2 + 'Flags:')
-                print(
-                    TAB_2 + 'URG: {}, ACK: {}, PSH: {}, RST: {}, SYN: {}, FIN: {}'.format(flag_urg, flag_ack, flag_psh,
-                                                                                          flag_rst, flag_syn, flag_fin))
-                print(TAB_2 + 'Data: ')
-                print(format_multi_line(DATA_TAB_3, dados))
 
             # UDP
-            if protocolo == 17:
-                src_port, dest_port, length, dados = udp(dados)
-                print(TAB_1 + 'UDP Segmnet: ')
-                print(TAB_2 + 'Source Port: {}, Destination Port: {}, Length: {}'.format(src_port, dest_port, length))
+            #elif proto_ip == 17:
+            elif proto_ip == 108:
+                udp = UDP(dados_transporte)
+                print('___UDP Segment:')
+                print('______Porta Fonte: {}, Porta Destino: {}, Tamanho: {}'.format(udp.src_port, udp.dest_port,
+                                                                                     udp.size))
 
+            # TCP
+            elif proto_ip == 6:
+                tcp = TCP(dados_transporte)
+                print('___TCP:')
+                print('______Porta Origem: {}, Porta Destino: {}'.format(tcp.origem, tcp.destino))
+                print('______Sequence: {}, Acknowledgment: {}'.format(tcp.seq, tcp.acknowledgment))
+                print('______Flags:')
+                print('_________RST: {}, SYN: {}, FIN:{}'.format(tcp.flag_rst, tcp.flag_syn, tcp.flag_fin))
+                print('_________ACK: {}, PSH: {}'.format(tcp.flag_ack, tcp.flag_psh))
+
+                if len(tcp.data) > 0:
+
+                    # HTTP
+                    if tcp.origem == 80 or tcp.destino == 80:
+                        try:
+                            print('______HTTP:')
+                            http_decode = tcp.data.decode('utf-8')
+                            dados_http = str(http_decode) \
+                                .split('\n')
+                            for line in dados_http:
+                                print('_________' + str(line))
+                        except:
+                            print(format_multi_line('_________', tcp.data))
+                    else:
+                        print('______TCP:')
+                        print(format_multi_line('_________', tcp.data))
+
+
+            # Other IPv4
             else:
-                print(TAB_1 + 'Data: ')
-                print(format_multi_line(DATA_TAB_2, dados))
+                print('___Dump de dados nao identificados:')
+                print(format_multi_line('______', dados_transporte))
 
         else:
-            print('Data: ')
-            print(format_multi_line(DATA_TAB_1, dados))
+            print('Dump de dados nao identificados:')
+            print(format_multi_line('___', dados))
 
 
-# Unpack ETHERNET
 def ethernet_frame(data):
     destination_mac, source_mac, type_data = struct.unpack('! 6s 6s H', data[:14])
 
-    return map_mac(destination_mac), map_mac(source_mac), socket.htons(type_data), data[:14]
+    return map_mac(destination_mac), map_mac(source_mac), socket.htons(type_data), data[14:]
 
 
-# tranform mac into readable mac address (ex: param -> 271364871236487 return -> AA:BB:CC:DD
 def map_mac(bytes_addr):
     bytes_str = map('{:02x}'.format, bytes_addr)
     return ':'.join(bytes_str).upper()
 
 
-def ipv4(data):
+def ipv_4(data):
     version_header_length = data[0]
     version = version_header_length >> 4
     header_length = (version_header_length & 15) * 4
-    ttl, protocol, src, target = struct.unpack('! 8x B B 2x 4s 4s', data[:20])
-    return version, header_length, ttl, protocol, map_ipv4(src), map_ipv4(target), data[header_length:]
+    ttl, proto, src, target = struct.unpack('! 8x B B 2x 4s 4s', data[:20])
+    src = '.'.join(map(str, src))
+    target = '.'.join(map(str, target))
+    dados_ipv4 = data[header_length:]
+
+    return version, header_length, ttl, proto, src, target, dados_ipv4
 
 
-def map_ipv4(addr):
-    return '.'.join(map(str, addr))
+def icmp(dados):
+    tipo, codigo, checksum = struct.unpack('! B B H', dados[:4])
 
-
-def icmp(data):
-    icpm_type, code, checksum = struct.unpack('! B B H', data[:4])
-    return icpm_type, code, checksum, data[4:]
-
-
-def tcp(data):
-    (src_port, dest_port, sequence, acknowledgement, offset_reserved_flags) = struct.unpack('! H H L L H', data[:14])
-    offset = (offset_reserved_flags >> 12) * 4
-    flag_urg = (offset_reserved_flags & 32) >> 5
-    flag_ack = (offset_reserved_flags & 16) >> 5
-    flag_psh = (offset_reserved_flags & 8) >> 5
-    flag_rst = (offset_reserved_flags & 4) >> 5
-    flag_syn = (offset_reserved_flags & 2) >> 5
-    flag_fin = offset_reserved_flags & 1
-    return src_port, dest_port, sequence, acknowledgement, flag_urg, flag_ack, \
-           flag_psh, flag_rst, flag_syn, flag_fin, data[offset:]
-
-
-def udp(data):
-    src_port, dest_port, size = struct.unpack('! H H 2X H', data[:8])
-    return src_port, dest_port, size, data[8:]
+    return tipo, codigo, checksum, dados[4:]
 
 
 def format_multi_line(prefix, string, size=80):
-    size = len(prefix)
+    size -= len(prefix)
     if isinstance(string, bytes):
         string = ''.join(r'\x{:02x}'.format(byte) for byte in string)
         if size % 2:
-            size = 1
-    return '/n'.join([prefix + line for line in textwrap.wrap(string, size)])
+            size -= 1
+    return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
 
 main()
