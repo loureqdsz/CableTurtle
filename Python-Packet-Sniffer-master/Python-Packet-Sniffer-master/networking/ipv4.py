@@ -12,6 +12,3 @@ class IPv4:
         self.target = self.ipv4(target)
         self.data = raw_data[self.header_length:]
 
-    # Returns properly formatted IPv4 address
-    def ipv4(self, addr):
-        return '.'.join(map(str, addr))
