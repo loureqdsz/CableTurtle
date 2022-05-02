@@ -40,7 +40,7 @@ def main():
 
 
             # UDP
-            #elif proto_ip == 17:
+            # elif proto_ip == 17:
             elif proto_ip == 108:
                 udp = UDP(dados_transporte)
                 print('___UDP Segment:')
@@ -84,6 +84,32 @@ def main():
             else:
                 print('___Dump de dados nao identificados:')
                 print(format_multi_line('______', dados_transporte))
+
+        # 86DD (ipv6)
+        if tipo_protocolo_ethernet == 34525:
+            version_trafic, tamanho_payload, proximo_protocolo, hop_limit, endereco_origem, endereco_destino = struct.unpack(
+                "!IHBB16s16s", dados[:40])
+            proximos_dados = dados[40:]
+            print('___IPv6:')
+            print('______Versao: {},'
+                  '\n ______Tamanho Payload: {},'
+                  '\n ______Proximo Cabecalho: {},'
+                  '\n ______Hop Limit: {},'
+                  '\n ______Endereco Origem: {},'
+                  '\n ______Endereco Destino: {}'.format(version_trafic >> 28, tamanho_payload, proximo_protocolo,
+                                                         hop_limit,
+                                                         endereco_origem, endereco_destino))
+
+            if proximo_protocolo == 58: ##ICMPv6
+                tipo, codigo, checksum, resto = struct.unpack("!BBHI", proximos_dados)
+                print('______ICMPv6'
+                      '\n _________Tipo: {},'
+                      '\n _________Codigo: {},'
+                      '\n _________Checksum: {},'
+                      '\n _________ICMP Data: {}'.format(tipo, codigo, checksum, resto))
+
+
+
 
         else:
             print('Dump de dados nao identificados:')
