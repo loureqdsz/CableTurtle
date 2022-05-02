@@ -1,18 +1,8 @@
 import socket
 import struct
-
-from general import *
-from ethernet import Ethernet
-from ipv4 import IPv4
-from icmp import ICMP
+import textwrap
 from tcp import TCP
 from udp import UDP
-from http import HTTP
-
-DATA_TAB_1 = '\t   '
-DATA_TAB_2 = '\t\t   '
-DATA_TAB_3 = '\t\t\t   '
-DATA_TAB_4 = '\t\t\t\t   '
 
 
 def main():
@@ -24,66 +14,70 @@ def main():
     while True:
 
         raw_data, addr = conn.recvfrom(65535)
-        mac_destino, mac_fonte, tipo_protocolo, dados = ethernet_frame(raw_data)
+        mac_destino, mac_fonte, tipo_protocolo_ethernet, dados = ethernet_frame(raw_data)
 
         print('\nEthernet II: ')
-        print('___MAC Destino: {}, MAC Source: {}, Protocolo: {}'.format(mac_destino, mac_fonte, tipo_protocolo))
+        print('___MAC Destino: {}, MAC Source: {}, Protocolo: {}'.format(mac_destino, mac_fonte, tipo_protocolo_ethernet))
 
-        if tipo_protocolo == 8:  # IPv4
-            (version_ip, hlen_ip, ttl_ip, proto_ip, src, target, dados_transporte) = ipv_4(dados)
+        if tipo_protocolo_ethernet == 43200:  # IPv4
+            (version_ip, hlen_ip, ttl_ip, proto_ip, origem, target, dados_transporte) = ipv_4(dados)
             print('___IPv4:')
-            print('______Version: {}, Header Length: {}, ttl_ip: {},'.format(version_ip, hlen_ip, ttl_ip))
-            print('______Protocol: {}, Source: {}, Target: {}'.format(proto_ip, src, target))
+            print('______Versao: {}, HLength: {}, TTL: {}, Protocolo: {}'.format(version_ip, hlen_ip, ttl_ip, proto_ip))
+            print('______Origem: {}, Destino: {}'.format(origem, target))
 
             # ICMP
             if proto_ip == 1:
-                icmp = ICMP(dados_transporte)
-                print('___ICMP Packet:')
-                print('______Type: {}, Code: {}, Checksum: {},'.format(icmp.type, icmp.code, icmp.checksum))
+                tipo, codigo, checksum, dados_aplicacao = icmp(dados_transporte)
+                print('___ICMP:')
+                print('______Tipo: {}, Codigo: {}, Checksum: {},'.format(tipo, codigo, checksum))
                 print('______ICMP Data:')
-                print(format_multi_line(DATA_TAB_3, icmp.data))
+                print(format_multi_line('_________', dados_aplicacao))
+
+
+            # UDP
+            #elif proto_ip == 17:
+            elif proto_ip == 108:
+                udp = UDP(dados_transporte)
+                print('___UDP Segment:')
+                print('______Porta Fonte: {}, Porta Destino: {}, Tamanho: {}'.format(udp.src_port, udp.dest_port,
+                                                                                     udp.size))
 
             # TCP
             elif proto_ip == 6:
                 tcp = TCP(dados_transporte)
-                print('___TCP Segment:')
-                print('______Source Port: {}, Destination Port: {}'.format(tcp.src_port, tcp.dest_port))
-                print('______Sequence: {}, Acknowledgment: {}'.format(tcp.sequence, tcp.acknowledgment))
+                print('___TCP:')
+                print('______Porta Origem: {}, Porta Destino: {}'.format(tcp.origem, tcp.destino))
+                print('______Sequence: {}, Acknowledgment: {}'.format(tcp.seq, tcp.acknowledgment))
                 print('______Flags:')
-                print('_________URG: {}, ACK: {}, PSH: {}'.format(tcp.flag_urg, tcp.flag_ack, tcp.flag_psh))
                 print('_________RST: {}, SYN: {}, FIN:{}'.format(tcp.flag_rst, tcp.flag_syn, tcp.flag_fin))
+                print('_________ACK: {}, PSH: {}'.format(tcp.flag_ack, tcp.flag_psh))
 
                 if len(tcp.data) > 0:
 
                     # HTTP
-                    if tcp.src_port == 80 or tcp.dest_port == 80:
-                        print('______HTTP Data:')
+                    if tcp.origem == 80 or tcp.destino == 80:
                         try:
-                            http = HTTP(tcp.data)
-                            http_info = str(http.data).split('\n')
-                            for line in http_info:
-                                print(DATA_TAB_3 + str(line))
+                            print('______HTTP:')
+                            http_decode = tcp.data.decode('utf-8')
+                            dados_http = str(http_decode) \
+                                .split('\n')
+                            for line in dados_http:
+                                print('_________' + str(line))
                         except:
-                            print(format_multi_line(DATA_TAB_3, tcp.data))
+                            print(format_multi_line('_________', tcp.data))
                     else:
-                        print('______TCP Data:')
-                        print(format_multi_line(DATA_TAB_3, tcp.data))
+                        print('______TCP:')
+                        print(format_multi_line('_________', tcp.data))
 
-            # UDP
-            elif proto_ip == 17:
-                udp = UDP(dados_transporte)
-                print('___UDP Segment:')
-                print('______Source Port: {}, Destination Port: {}, Length: {}'.format(udp.src_port, udp.dest_port,
-                                                                                       udp.size))
 
             # Other IPv4
             else:
-                print('___Other IPv4 Data:')
-                print(format_multi_line(DATA_TAB_2, dados_transporte))
+                print('___Dump de dados nao identificados:')
+                print(format_multi_line('______', dados_transporte))
 
         else:
-            print('Ethernet Data:')
-            print(format_multi_line(DATA_TAB_1, dados))
+            print('Dump de dados nao identificados:')
+            print(format_multi_line('___', dados))
 
 
 def ethernet_frame(data):
@@ -107,6 +101,21 @@ def ipv_4(data):
     dados_ipv4 = data[header_length:]
 
     return version, header_length, ttl, proto, src, target, dados_ipv4
+
+
+def icmp(dados):
+    tipo, codigo, checksum = struct.unpack('! B B H', dados[:4])
+
+    return tipo, codigo, checksum, dados[4:]
+
+
+def format_multi_line(prefix, string, size=80):
+    size -= len(prefix)
+    if isinstance(string, bytes):
+        string = ''.join(r'\x{:02x}'.format(byte) for byte in string)
+        if size % 2:
+            size -= 1
+    return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
 
 main()
