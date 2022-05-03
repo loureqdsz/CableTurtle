@@ -1,13 +1,14 @@
 import socket
 import struct
 import textwrap
-import atexit
+import signal
+import os
+import sys
 from tcp import TCP
 from udp import UDP
 
 
 def main():
-    atexit.register(exit_handler)
     host = socket.gethostbyname(socket.gethostname())
     conn = socket.socket(socket.AF_INET, socket.SOCK_RAW)
     conn.bind((host, 0))
@@ -22,6 +23,14 @@ def main():
     percentHttp = 0
     percentIcmp6 = 0
     percentTotal = 0
+
+
+    def signal_handler ():
+        exit_handler(percentIpv4, percentIpv6, percentIcmp, percentTcp, percentUdp, percentHttp, percentIcmp6, percentTotal)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler())
+    print('\n-------------- Pressione CRTL + C para Exibir Estatisticas:\n')
 
     while True:
         percentTotal = percentTotal + 1
@@ -189,6 +198,9 @@ def format_multi_line(prefix, string, size=80):
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
 def exit_handler(ipv4Qnt, ipv6Qnt, icmpQnt, tcpQnt, udpQnt, httpQnt, icmp6Qnt, total):
+    if total == 0:
+        total = 1
+
     print('----Sessão de Estatistica: ')
     print('------ Porcentagem Ipv4:  {value:.2f} %'.format(value=((ipv4Qnt * 100)/total)))
     print('------ Porcentagem Ipv6:  {value:.2f} %'.format(value=((ipv6Qnt * 100)/total)))
