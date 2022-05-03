@@ -100,7 +100,7 @@ def main():
                                                          hop_limit,
                                                          endereco_origem, endereco_destino))
 
-            if proximo_protocolo == 58: ##ICMPv6
+            if proximo_protocolo == 58:  ##ICMPv6
                 tipo, codigo, checksum, resto = struct.unpack("!BBHI", proximos_dados)
                 print('______ICMPv6'
                       '\n _________Tipo: {},'
@@ -108,8 +108,17 @@ def main():
                       '\n _________Checksum: {},'
                       '\n _________ICMP Data: {}'.format(tipo, codigo, checksum, resto))
 
+        if tipo_protocolo_ethernet == 2054:
+            p1 = dados[:8]
+            p2 = dados[8:28]
+            tipo_hardware, tipo_protocolo, tamanho_endereco_hardware, \
+            tamanho_endereco_protocolo, opcode = struct.unpack("!HHBBH",
+                                                               p1)
+            source_mac, source_prot_addr, target_mac, target_prot_addr = struct.unpack("!6s4s6s4s", p2)
 
-
+            print('___ARP')
+            print('______MAC Origem: {},'
+                  '\n______ MAC Destino: {}'.format(map_mac(source_mac), map_mac(target_mac)))
 
         else:
             print('Dump de dados nao identificados:')
