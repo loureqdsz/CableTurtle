@@ -1,9 +1,6 @@
 import socket
 import struct
 import textwrap
-import signal
-import os
-import sys
 from tcp import TCP
 from udp import UDP
 
@@ -25,14 +22,7 @@ def main():
     percentTotal = 0
 
 
-    def signal_handler ():
-        exit_handler(percentIpv4, percentIpv6, percentIcmp, percentTcp, percentUdp, percentHttp, percentIcmp6, percentTotal)
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, signal_handler())
-    print('\n-------------- Pressione CRTL + C para Exibir Estatisticas:\n')
-
-    while True:
+    while percentTotal < 100:
         percentTotal = percentTotal + 1
 
         raw_data, addr = conn.recvfrom(65535)
@@ -134,7 +124,7 @@ def main():
                                                          hop_limit,
                                                          endereco_origem, endereco_destino))
 
-            if proximo_protocolo == 58: ##ICMPv6
+            if proximo_protocolo == 58:  ##ICMPv6
                 percentIcmp6 = percentIcmp6 + 1
                 tipo, codigo, checksum, resto = struct.unpack("!BBHI", proximos_dados)
                 print('______ICMPv6'
@@ -158,6 +148,8 @@ def main():
         else:
             print('Dump de dados nao identificados:')
             print(format_multi_line('___', dados))
+    exit_handler(percentIpv4, percentIcmp6, percentIcmp, percentTcp, percentUdp, percentHttp, percentIcmp6,
+                 percentTotal)
 
 
 def ethernet_frame(data):
@@ -197,18 +189,20 @@ def format_multi_line(prefix, string, size=80):
             size -= 1
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
+
 def exit_handler(ipv4Qnt, ipv6Qnt, icmpQnt, tcpQnt, udpQnt, httpQnt, icmp6Qnt, total):
     if total == 0:
         total = 1
 
-    print('----Sessão de Estatistica: ')
-    print('------ Porcentagem Ipv4:  {value:.2f} %'.format(value=((ipv4Qnt * 100)/total)))
-    print('------ Porcentagem Ipv6:  {value:.2f} %'.format(value=((ipv6Qnt * 100)/total)))
-    print('------ Porcentagem Icmp:  {value:.2f} %'.format(value=((icmpQnt * 100)/total)))
-    print('------ Porcentagem Tcp:   {value:.2f} %'.format(value=((tcpQnt * 100)/total)))
-    print('------ Porcentagem Udp:   {value:.2f} %'.format(value=((udpQnt * 100)/total)))
-    print('------ Porcentagem Http:  {value:.2f} %'.format(value=((httpQnt * 100)/total)))
-    print('------ Porcentagem Icmp6: {value:.2f} %'.format(value=((icmp6Qnt * 100)/total)))
+    print('\n\n----Sessão de Estatistica: ')
+    print('------ Porcentagem Ipv4:  {value:.2f} %'.format(value=((ipv4Qnt * 100) / total)))
+    print('------ Porcentagem Ipv6:  {value:.2f} %'.format(value=((ipv6Qnt * 100) / total)))
+    print('------ Porcentagem Icmp:  {value:.2f} %'.format(value=((icmpQnt * 100) / total)))
+    print('------ Porcentagem Tcp:   {value:.2f} %'.format(value=((tcpQnt * 100) / total)))
+    print('------ Porcentagem Udp:   {value:.2f} %'.format(value=((udpQnt * 100) / total)))
+    print('------ Porcentagem Http:  {value:.2f} %'.format(value=((httpQnt * 100) / total)))
+    print('------ Porcentagem Icmp6: {value:.2f} %'.format(value=((icmp6Qnt * 100) / total)))
     print('------ Quantidade de Requisições feitas Ethernet II = {}'.format(total))
+
 
 main()
