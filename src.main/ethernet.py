@@ -1,17 +1,30 @@
 import socket
 import struct
 import textwrap
+import atexit
 from tcp import TCP
 from udp import UDP
 
 
 def main():
+    atexit.register(exit_handler)
     host = socket.gethostbyname(socket.gethostname())
     conn = socket.socket(socket.AF_INET, socket.SOCK_RAW)
     conn.bind((host, 0))
     conn.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
 
+    # Parte definicao estatistica
+    percentIpv4 = 0
+    percentIpv6 = 0
+    percentIcmp = 0
+    percentTcp = 0
+    percentUdp = 0
+    percentHttp = 0
+    percentIcmp6 = 0
+    percentTotal = 0
+
     while True:
+        percentTotal = percentTotal + 1
 
         raw_data, addr = conn.recvfrom(65535)
         mac_destino, mac_fonte, tipo_protocolo_ethernet, dados = ethernet_frame(raw_data)
@@ -22,6 +35,8 @@ def main():
                                                                                    tipo_protocolo_ethernet))
 
         if tipo_protocolo_ethernet == 43200:  # IPv4
+            percentIpv4 = percentIpv4 + 1
+
             (version_ip, hlen_ip, ttl_ip, proto_ip, origem, target, dados_transporte) = ipv_4(dados)
             print('___IPv4:')
             print('______Versao: {},\n ______HLength: {},\n ______TTL: {},\n ______Protocolo: {}'.format(version_ip,
@@ -32,6 +47,8 @@ def main():
 
             # ICMP
             if proto_ip == 1:
+                percentIcmp = percentIcmp + 1
+
                 tipo, codigo, checksum, dados_aplicacao = icmp(dados_transporte)
                 print('___ICMP:')
                 print('______Tipo: {},\n ______Codigo: {},\n ______Checksum: {},'.format(tipo, codigo, checksum))
@@ -42,6 +59,8 @@ def main():
             # UDP
             # elif proto_ip == 17:
             elif proto_ip == 108:
+                percentUdp = percentUdp + 1
+
                 udp = UDP(dados_transporte)
                 print('___UDP Segment:')
                 print('______Porta Fonte: {},\n ______Porta Destino: {}, \n______Tamanho: {}'.format(udp.src_port,
@@ -50,6 +69,8 @@ def main():
 
             # TCP
             elif proto_ip == 6:
+                percentTcp = percentTcp + 1
+
                 tcp = TCP(dados_transporte)
                 print('___TCP:')
                 print('______Porta Origem: {}, \n______Porta Destino: {}'.format(tcp.origem,
@@ -66,6 +87,8 @@ def main():
 
                     # HTTP
                     if tcp.origem == 80 or tcp.destino == 80:
+                        percentHttp = percentHttp + 1
+
                         try:
                             print('______HTTP:')
                             http_decode = tcp.data.decode('utf-8')
@@ -87,6 +110,8 @@ def main():
 
         # 86DD (ipv6)
         if tipo_protocolo_ethernet == 34525:
+            percentIpv6 = percentIpv6 + 1
+
             version_trafic, tamanho_payload, proximo_protocolo, hop_limit, endereco_origem, endereco_destino = struct.unpack(
                 "!IHBB16s16s", dados[:40])
             proximos_dados = dados[40:]
@@ -100,7 +125,8 @@ def main():
                                                          hop_limit,
                                                          endereco_origem, endereco_destino))
 
-            if proximo_protocolo == 58:  ##ICMPv6
+            if proximo_protocolo == 58: ##ICMPv6
+                percentIcmp6 = percentIcmp6 + 1
                 tipo, codigo, checksum, resto = struct.unpack("!BBHI", proximos_dados)
                 print('______ICMPv6'
                       '\n _________Tipo: {},'
@@ -162,5 +188,7 @@ def format_multi_line(prefix, string, size=80):
             size -= 1
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
+def exit_handler():
+    print('My application is ending!')
 
 main()
