@@ -188,7 +188,15 @@ def format_multi_line(prefix, string, size=80):
             size -= 1
     return '\n'.join([prefix + line for line in textwrap.wrap(string, size)])
 
-def exit_handler():
-    print('My application is ending!')
+def exit_handler(ipv4Qnt, ipv6Qnt, icmpQnt, tcpQnt, udpQnt, httpQnt, icmp6Qnt, total):
+    print('----Sessão de Estatistica: ')
+    print('------ Porcentagem Ipv4:  {value:.2f} %'.format(value=((ipv4Qnt * 100)/total)))
+    print('------ Porcentagem Ipv6:  {value:.2f} %'.format(value=((ipv6Qnt * 100)/total)))
+    print('------ Porcentagem Icmp:  {value:.2f} %'.format(value=((icmpQnt * 100)/total)))
+    print('------ Porcentagem Tcp:   {value:.2f} %'.format(value=((tcpQnt * 100)/total)))
+    print('------ Porcentagem Udp:   {value:.2f} %'.format(value=((udpQnt * 100)/total)))
+    print('------ Porcentagem Http:  {value:.2f} %'.format(value=((httpQnt * 100)/total)))
+    print('------ Porcentagem Icmp6: {value:.2f} %'.format(value=((icmp6Qnt * 100)/total)))
+    print('------ Quantidade de Requisições feitas Ethernet II = {}'.format(total))
 
 main()
